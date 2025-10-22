@@ -117,9 +117,10 @@
     <div id="summary"></div>
   </div>
 
-  <audio id="sound-correct" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-  <audio id="sound-wrong" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg"></audio>
-  <audio id="sound-finish" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+<audio id="sound-correct" preload="auto" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+<audio id="sound-wrong"   preload="auto" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg"></audio>
+<audio id="sound-finish"  preload="auto" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+
 
   <script>
     let score = 0;
@@ -200,30 +201,38 @@
       });
       document.getElementById('answers').innerHTML = answersHTML;
     }
+function playSound(id) {
+  const a = document.getElementById(id);
+  if (!a) return;
+  a.pause();           // stop if already playing
+  a.currentTime = 0;   // rewind to the start
+  a.play().catch(() => {}); // avoid unhandled promise warnings
+}
 
-    function checkAnswer(selected) {
-      totalQuestions++;
-      if (selected === currentAnswer) {
-        score++;
-        streak++;
-        if (streak > longestStreak) {
-          longestStreak = streak;
-          launchConfetti();
-        }
-        document.getElementById('feedback').innerText = "✅ Great job!";
-        document.getElementById('sound-correct').play();
-        flashBackground("#c8facc");
-      } else {
-        streak = 0;
-        document.getElementById('feedback').innerText = `❌ Oops! The correct answer was ${currentAnswer}.`;
-        document.getElementById('sound-wrong').play();
-        flashBackground("#fbcaca");
-      }
-      updateStats();
-      if (!speedMode || timeLeft > 0) {
-        setTimeout(nextQuestion, 800);
-      }
+function checkAnswer(selected) {
+  totalQuestions++;
+  if (selected === currentAnswer) {
+    score++;
+    streak++;
+    if (streak > longestStreak) {
+      longestStreak = streak;
+      launchConfetti();
     }
+    document.getElementById('feedback').innerText = "✅ Great job!";
+    playSound('sound-correct');   // << instant
+    flashBackground("#c8facc");
+  } else {
+    streak = 0;
+    document.getElementById('feedback').innerText = `❌ Oops! The correct answer was ${currentAnswer}.`;
+    playSound('sound-wrong');     // << instant
+    flashBackground("#fbcaca");
+  }
+  updateStats();
+  if (!speedMode || timeLeft > 0) {
+    setTimeout(nextQuestion, 800);
+  }
+}
+
 
     function updateStats() {
       document.getElementById('score').innerText = "Score: " + score;
