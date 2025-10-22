@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Multiplication Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f8ff;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+    #game {
+      margin: auto;
+      max-width: 500px;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      position: relative;
+      z-index: 2;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: #4CAF50;
+      color: white;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    #feedback {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .checkboxes {
+      margin: 10px 0;
+      text-align: left;
+      display: inline-block;
+    }
+    #timer {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+    #progressBar {
+      width: 100%;
+      background-color: #ddd;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    #progressFill {
+      width: 100%;
+      height: 20px;
+      background-color: #4CAF50;
+      border-radius: 8px;
+    }
+    #summary {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 12px;
+      background: #e6f7ff;
+      font-size: 18px;
+    }
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: red;
+      animation: fall 3s linear forwards;
+      z-index: 1;
+    }
+    @keyframes fall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(500px) rotate(720deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <h1>Multiplication Challenge!</h1>
+    <div id="setup">
+      <p>Select which tables to practice:</p>
+      <div class="checkboxes">
+        <script>
+          for (let i = 2; i <= 12; i++) {
+            document.write(`<label><input type="checkbox" value="${i}"> ${i}× table</label><br>`);
+          }
+        </script>
+      </div>
+      <button onclick="startGame(false)">Start Normal Mode</button>
+      <button onclick="startGame(true)">Start Speed Mode (90s)</button>
+    </div>
+
+    <div id="quiz" style="display:none;">
+      <p id="question"></p>
+      <div id="answers"></div>
+      <p id="feedback"></p>
+      <p id="score">Score: 0</p>
+      <p id="streak">Current Streak: 0 | Longest Streak: 0</p>
+      <p id="timer"></p>
+      <div id="progressBar"><div id="progressFill"></div></div>
+      <button onclick="goHome()">Start Over</button>
+    </div>
+
+    <div id="summary"></div>
+  </div>
+
+  <audio id="sound-correct" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="sound-wrong" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg"></audio>
+  <audio id="sound-finish" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+
+  <script>
+    let score = 0;
+    let streak = 0;
+    let longestStreak = 0;
+    let totalQuestions = 0;
+    let currentAnswer = 0;
+    let selectedFactors = [];
+    let speedMode = false;
+    let timeLeft = 0;
+    let timerInterval;
+
+    function startGame(isSpeed) {
+      selectedFactors = [];
+      document.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+        selectedFactors.push(parseInt(cb.value));
+      });
+      if (selectedFactors.length === 0) {
+        alert("Please select at least one times table!");
+        return;
+      }
+
+      score = 0;
+      streak = 0;
+      longestStreak = 0;
+      totalQuestions = 0;
+      speedMode = isSpeed;
+
+      document.getElementById('setup').style.display = 'none';
+      document.getElementById('quiz').style.display = 'block';
+      document.getElementById('summary').style.display = 'none';
+      document.getElementById('feedback').innerText = "";
+      updateStats();
+
+      if (speedMode) {
+        timeLeft = 90;
+        updateTimer();
+        timerInterval = setInterval(() => {
+          timeLeft--;
+          updateTimer();
+          if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            endGame();
+          }
+        }, 1000);
+      } else {
+        document.getElementById('timer').innerText = "";
+        document.getElementById('progressFill').style.width = "100%";
+      }
+
+      nextQuestion();
+    }
+
+    function updateTimer() {
+      document.getElementById('timer').innerText = `⏱ Time Left: ${timeLeft}s`;
+      document.getElementById('progressFill').style.width = `${(timeLeft / 90) * 100}%`;
+    }
+
+    function nextQuestion() {
+      const multiplier = selectedFactors[Math.floor(Math.random() * selectedFactors.length)];
+      const number = Math.floor(Math.random() * 12) + 1;
+      currentAnswer = multiplier * number;
+
+      document.getElementById('question').innerText = `What is ${multiplier} × ${number}?`;
+
+      let options = [currentAnswer];
+      while (options.length < 4) {
+        let wrong = currentAnswer + (Math.floor(Math.random() * 10) - 5);
+        if (wrong !== currentAnswer && wrong > 0 && !options.includes(wrong)) {
+          options.push(wrong);
+        }
+      }
+      options.sort(() => Math.random() - 0.5);
+
+      let answersHTML = "";
+      options.forEach(opt => {
+        answersHTML += `<button onclick="checkAnswer(${opt})">${opt}</button>`;
+      });
+      document.getElementById('answers').innerHTML = answersHTML;
+    }
+
+    function checkAnswer(selected) {
+      totalQuestions++;
+      if (selected === currentAnswer) {
+        score++;
+        streak++;
+        if (streak > longestStreak) {
+          longestStreak = streak;
+          launchConfetti();
+        }
+        document.getElementById('feedback').innerText = "✅ Great job!";
+        document.getElementById('sound-correct').play();
+        flashBackground("#c8facc");
+      } else {
+        streak = 0;
+        document.getElementById('feedback').innerText = `❌ Oops! The correct answer was ${currentAnswer}.`;
+        document.getElementById('sound-wrong').play();
+        flashBackground("#fbcaca");
+      }
+      updateStats();
+      if (!speedMode || timeLeft > 0) {
+        setTimeout(nextQuestion, 800);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('score').innerText = "Score: " + score;
+      document.getElementById('streak').innerText = `Current Streak: ${streak} | Longest Streak: ${longestStreak}`;
+    }
+
+    function flashBackground(color) {
+      document.body.style.backgroundColor = color;
+      setTimeout(() => { document.body.style.backgroundColor = "#f0f8ff"; }, 300);
+    }
+
+    function endGame() {
+      document.getElementById('question').innerText = "⏱ Time's up!";
+      document.getElementById('answers').innerHTML = "";
+      document.getElementById('feedback').innerText = "";
+      document.getElementById('sound-finish').play();
+
+      let accuracy = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+      let medal = "";
+      if (accuracy >= 90 && score >= 20) medal = "🥇 Gold Medal!";
+      else if (accuracy >= 70) medal = "🥈 Silver Medal!";
+      else if (accuracy >= 50) medal = "🥉 Bronze Medal!";
+      else medal = "Keep practicing!";
+
+      if (medal.includes("Medal")) {
+        launchConfetti();
+      }
+
+      document.getElementById('summary').style.display = 'block';
+      document.getElementById('summary').innerHTML = `
+        <h2>Game Over!</h2>
+        <p>Final Score: ${score}</p>
+        <p>Accuracy: ${accuracy}%</p>
+        <p>Longest Streak: ${longestStreak}</p>
+        <p>${medal}</p>
+        <button onclick="goHome()">Start Over</button>
+      `;
+    }
+
+    function launchConfetti() {
+      for (let i = 0; i < 30; i++) {
+        let confetti = document.createElement("div");
+        confetti.classList.add("confetti");
+        confetti.style.left = Math.random() * window.innerWidth + "px";
+        confetti.style.top = "-20px";
+        confetti.style.backgroundColor = randomColor();
+        document.body.appendChild(confetti);
+        setTimeout(() => confetti.remove(), 3000);
+      }
+    }
+
+    function randomColor() {
+      const colors = ["#ff3838", "#ff9f1a", "#32ff7e", "#18dcff", "#7d5fff", "#ff6b81"];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    function goHome() {
+      clearInterval(timerInterval);
+      document.getElementById('quiz').style.display = 'none';
+      document.getElementById('summary').style.display = 'none';
+      document.getElementById('setup').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
